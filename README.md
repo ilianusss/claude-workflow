@@ -1,14 +1,17 @@
 # claude-workflow
 
-A Claude Code mod that drives a project workflow (spec, design, slices, build, review, retro) from one command, `/workflow`, and keeps tests locked between writing them and making them pass.
+A Claude Code mod that runs a project from idea to pull request with one command, `/workflow`, and keeps a slice's tests locked between writing them and making them pass.
 
-**Status:** skeleton. The design is in [ilianusss/.claude](https://github.com/ilianusss/.claude), `docs/plan.md`, sections 8 and 9.
+## Role in the system
 
-## Requirements
+It is the `workflow` half of the setup in [ilianusss/.claude](https://github.com/ilianusss/.claude), loaded there as a submodule, and it also installs on its own as a plugin. The knowledge it relies on (`writing-tests-first`, `writing-clean-code`, `writing-secure-code`, `following-git-conventions`) and the `reviewer` agent live in that repo; without them the phases still run, with less guidance.
 
-Claude Code 2.1.308 or later. Mods use an early-access API that may change between releases.
+## Prerequisites
 
-## Install
+- Claude Code 2.1.308 or later. Mods use an early-access API that may change between releases.
+- A git repository: the state lives in its `.git`.
+
+## Getting started
 
 At the prompt of a Claude Code session:
 
@@ -16,14 +19,46 @@ At the prompt of a Claude Code session:
 /plugin install workflow --marketplace ilianusss/claude-workflow
 ```
 
-In [ilianusss/.claude](https://github.com/ilianusss/.claude) it is a git submodule at `mods/workflow`, loaded from the folder through `CLAUDE_CODE_PLUGIN_DIRS`.
+Then, in a repo, type `/workflow new <title>`. A project without `.claude/workflow.json` starts with the setup phase, which writes it.
+
+## Commands
+
+| Command | Does |
+| --- | --- |
+| `/workflow` | The workflows of this repo |
+| `/workflow all` | Open workflows in every repo |
+| `/workflow new <title>` | Start one: size, commits and branch are asked in a dialog |
+| `/workflow continue [slug]` | Resume one, with a drift check after a long break |
+| `/workflow next` | Clear the context and continue: the command between slices |
+| `/workflow pause` | Write the handoff and stop |
+| `/workflow unlock <file> <reason>` | Unlock a locked test yourself |
+| `/workflow done <slug>`, `/workflow abandon <slug> <reason>` | Close one |
+| `/workflow adopt` | Set up a project, or rebuild workflows from their committed specs |
+
+The phases, the slice cycle and the test lock are described in [docs/workflow.md](https://github.com/ilianusss/.claude/blob/main/docs/workflow.md) of the setup repo.
+
+## Project structure
+
+```text
+hooks/        the module Claude Code loads
+src/          commands, tools, guards, state, the test lock
+phases/       what Claude does in each phase, with the files it may write
+guides/       question banks, the decision guide, EARS, the drift check
+templates/    spec, design, slices, ADR, project CLAUDE.md, workflow.json
+tests/        claude plugin test suites, against a fake git and file system
+```
+
+## Documentation
+
+- [docs/architecture.md](https://github.com/ilianusss/.claude/blob/main/docs/architecture.md) of the setup repo: how the mod enforces the lock and the gates, and the facts measured that shaped it.
+- [docs/decisions.md](https://github.com/ilianusss/.claude/blob/main/docs/decisions.md): why it is built this way.
 
 ## Development
 
 ```sh
 claude --plugin-dir .      # a session with the mod loaded, reloaded on save
 claude plugin validate .   # what the engine would refuse
-claude plugin test .       # runs tests/*.test.ts against the engine
+claude plugin test .       # the test suites
 ```
 
-The engine writes the API types into `.claude-plugin/types/` each time it loads the mod. They are the reference: the API moves between releases.
+The engine writes the API types into `.claude-plugin/types/` each time it loads the mod; grep them rather than trusting memory, since the API moves between releases. A hook must be a function literal, at most one hook per event without a matcher, and `$` is never put in an object or handed to a callback: the engine refuses to load the module otherwise.
