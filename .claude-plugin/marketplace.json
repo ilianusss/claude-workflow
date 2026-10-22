@@ -1,0 +1,6 @@
+{
+  "name": "claude-workflow",
+  "description": "The workflow mod: one /workflow command for spec, design, slices, build, review and retro.",
+  "owner": { "name": "ilianusss" },
+  "plugins": [{ "name": "workflow", "source": "./" }]
+}
