@@ -1,3 +1,17 @@
+export type LockedFile = { hash: string; content: string }
+
+export type Lock = {
+  slug: string
+  slice: number
+  phase: 'green' | 'open'
+  files: Record<string, LockedFile>
+  sliceFiles: string[]
+  unlocked: string[]
+  updated: string
+}
+
+export type Run = { command: string; exitCode: number; tree: string; at: string }
+
 const IMPORT =
   /^(?:import\b|export\s+(?:\*|\{[^}]*\})\s+from\b|from\s+\S+\s+import\b|use\s|#include\b|(?:const|let|var|local)\s+[\w{}\s,]+=\s*require\s*\(|require\s*\()/
 
@@ -18,4 +32,24 @@ export function removedLines(before: string, after: string): string[] {
     else removed.push(line)
   }
   return removed
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function parseLock(text: string): Lock {
+  const raw: unknown = JSON.parse(text)
+  if (!isRecord(raw) || !isRecord(raw.files) || (raw.phase !== 'green' && raw.phase !== 'open')) {
+    throw new Error('the lock file is not a workflow lock')
+  }
+  return raw as Lock
+}
+
+export function renderLock(lock: Lock): string {
+  return `${JSON.stringify(lock, null, 2)}\n`
+}
+
+export function latestRun(runs: readonly Run[], command: string): Run | undefined {
+  return [...runs].reverse().find(run => run.command === command)
 }
