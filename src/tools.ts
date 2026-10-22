@@ -24,6 +24,11 @@ const TOOLS: readonly RegisteredToolSpec[] = [
         stopped: { type: 'string', description: 'Where things stand, in one or two sentences.' },
         next: { type: 'string', description: 'The next concrete action.' },
         questions: { type: 'array', items: { type: 'string' }, description: 'Questions still open for the user.' },
+        paths: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'The folders this workflow touches, relative to the repo root. Set it in the design phase; the drift check watches them.',
+        },
       },
       required: ['stopped', 'next'],
     },
@@ -81,6 +86,11 @@ function textInput(input: Record<string, unknown>, key: string): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function listInput(input: Record<string, unknown>, key: string): string[] | undefined {
+  const value = input[key]
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : undefined
+}
+
 function currentOf(context: Context): Workflow {
   if (context.current === undefined) refuse('no workflow runs on this branch. /workflow continue <slug> picks one.')
   return context.current
@@ -88,12 +98,12 @@ function currentOf(context: Context): Workflow {
 
 async function handoff($: EngineInterface, context: Context, input: Record<string, unknown>, now: number): Promise<string> {
   const workflow = currentOf(context)
-  const questions = Array.isArray(input.questions) ? input.questions.filter((item): item is string => typeof item === 'string') : []
   await saveWorkflow($, context.repo, context.paths, {
     ...workflow,
     stopped: textInput(input, 'stopped'),
     next: textInput(input, 'next'),
-    questions,
+    questions: listInput(input, 'questions') ?? [],
+    paths: listInput(input, 'paths') ?? workflow.paths,
     updated: iso(now),
   })
   return 'Saved the handoff.'

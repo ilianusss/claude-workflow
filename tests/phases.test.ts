@@ -122,4 +122,22 @@ describe('handoff', () => {
 
     expect(state(fake.files)).toMatchObject({ stopped: 'Options compared.', next: 'Ask the user to choose.', questions: ['Redis or Postgres?'] })
   })
+
+  test('records the folders the design touches, for the drift check', async ($, on) => {
+    const fake = fakeEngine(on, DESIGN, 'feat/login')
+    await start($)
+
+    await $.tool.call({ tool: 'mcp__workflow__handoff', stopped: 'Design written.', next: 'Approve it.', paths: ['src/auth', 'src/api'] })
+
+    expect(state(fake.files).paths).toEqual(['src/auth', 'src/api'])
+  })
+
+  test('keeps the recorded folders when a handoff does not name any', async ($, on) => {
+    const fake = fakeEngine(on, DESIGN, 'feat/login')
+    await start($)
+
+    await $.tool.call({ tool: 'mcp__workflow__handoff', stopped: 'Still designing.', next: 'Compare options.' })
+
+    expect(state(fake.files).paths).toEqual(['src'])
+  })
 })
